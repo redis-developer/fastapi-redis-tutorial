@@ -1,0 +1,7 @@
+[run]
+include =
+    app/*
+omit=
+    tests/*
+    scripts/*
+    app/core/logger.py

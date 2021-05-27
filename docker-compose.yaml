@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+    redis:
+        image: redis
+        ports:
+          - "16379:6379"
+        volumes:
+          - $PWD/data:/data
+        command: redis-server --appendonly yes --aof-use-rdb-preamble yes --dir /data
+    
+    app:
+        restart: always
+        build: .
+        ports:
+            - "8080:80"
+        volumes:
+            - $PWD/app:/app
+        depends_on:
+            - redis
+        command: /start-reload.sh
