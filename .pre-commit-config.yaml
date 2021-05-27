@@ -8,7 +8,6 @@ repos:
       - id: check-docstring-first
       - id: debug-statements
       - id: double-quote-string-fixer
-      - id: name-tests-test
         exclude: (tests/utils)
       - id: requirements-txt-fixer
     - repo: https://gitlab.com/pycqa/flake8
