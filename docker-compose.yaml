@@ -7,7 +7,7 @@ services:
         volumes:
           - $PWD/data:/data
         command: redis-server --appendonly yes --aof-use-rdb-preamble yes --dir /data
-    
+
     app:
         restart: always
         build: .
@@ -18,3 +18,11 @@ services:
         depends_on:
             - redis
         command: /start-reload.sh
+
+    test:
+        build: .
+        volumes:
+            - $PWD:/app
+        depends_on:
+            - redis
+        entrypoint: "pytest"
