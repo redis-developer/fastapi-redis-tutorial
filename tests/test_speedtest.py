@@ -1,11 +1,15 @@
 import json
 
-from fastapi.testclient import TestClient
-from redis import Redis
+import pytest
+from aioredis import Redis
+from httpx import AsyncClient
+
+from app.main import get_cache_key
 
 
-def test_speedtest(client: TestClient):
-    res = client.get('/speedtest')
+@pytest.mark.asyncio
+async def test_speedtest(client: AsyncClient):
+    res = await client.get('/speedtest')
     json = res.json()
 
     assert res.status_code == 200
@@ -14,11 +18,12 @@ def test_speedtest(client: TestClient):
         assert field in json
 
 
-def test_speedtest_cache(client: TestClient, redis: Redis):
+@pytest.mark.asyncio
+async def test_speedtest_cache(client: AsyncClient, redis: Redis):
     # prime the cache
-    client.get('/speedtest')
+    await client.get('/speedtest')
 
-    cached = redis.get('speedtest-cache:app.main.speedtest()')
+    cached = await redis.get(get_cache_key())
     assert cached is not None
     data = json.loads(cached)
 
