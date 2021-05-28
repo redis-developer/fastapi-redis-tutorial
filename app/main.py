@@ -4,7 +4,6 @@ import socket
 
 import aioredis
 from aiotestspeed.aio import Speedtest
-from fastapi import Depends
 from fastapi import FastAPI
 from pydantic import BaseSettings
 
