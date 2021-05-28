@@ -14,7 +14,6 @@ class Config(BaseSettings):
 
 
 logger = logging.getLogger(__name__)
-app = FastAPI()
 config = Config()
 app = FastAPI(title='FastAPI Redis Cache Example')
 
