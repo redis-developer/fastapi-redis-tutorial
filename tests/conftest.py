@@ -17,7 +17,7 @@ async def client():
 
 @pytest.fixture(scope='module')
 def redis() -> Generator:
-    yield aioredis.from_url(config.redis_url)
+    yield aioredis.from_url(config.redis_url, decode_responses=True)
 
 
 @pytest.fixture(scope='session')

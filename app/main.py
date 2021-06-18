@@ -1,14 +1,19 @@
+import functools
 import json
 import logging
-import socket
+from datetime import datetime
 
 import aioredis
-from aiotestspeed.aio import Speedtest
+import requests
+from aioredis.exceptions import ResponseError
 from fastapi import FastAPI
 from pydantic import BaseSettings
 
 
-SPEEDTEST_KEY = 'speedtest:{ip}'
+TIMESERIES_KEY = 'is-bitcoin-lit:sentiment:mean:{time}'
+SUMMARY_KEY = 'is-bitcoin-lit:summary:hourly:{time}'
+SENTIMENT_API_URL = 'https://api.senticrypt.com/v1/history/bitcoin-{time}.json'
+TIME_FORMAT_STRING = '%Y-%m-%d_%H'
 
 
 class Config(BaseSettings):
@@ -18,34 +23,45 @@ class Config(BaseSettings):
 logger = logging.getLogger(__name__)
 config = Config()
 app = FastAPI(title='FastAPI Redis Tutorial')
-redis = aioredis.from_url(config.redis_url)
+redis = aioredis.from_url(config.redis_url, decode_responses=True)
 
 
-def get_cache_key():
-    hostname = socket.gethostname()
-    ip = socket.gethostbyname(hostname)
-    return SPEEDTEST_KEY.format(ip=ip)
+def make_summary(data):
+    return {
+        'time': datetime.now().timestamp(),
+        'mean_sentiment': sum(d['mean'] for d in data) / len(data),
+    }
 
 
-@app.get('/speedtest')
-async def speedtest():
-    logger.debug('Running speedtest')
-    key = get_cache_key()
+@app.get('/is-bitcoin-lit')
+async def bitcoin():
+    sentiment_time = datetime.now().strftime(TIME_FORMAT_STRING)
+    summary_key = SUMMARY_KEY.format(time=sentiment_time)
+    ts_key = TIMESERIES_KEY.format(time=sentiment_time)
+    url = SENTIMENT_API_URL.format(time=sentiment_time)
 
-    found = await redis.get(key)
-    if found:
-        data = json.loads(found)
-    else:
-        s: Speedtest = await Speedtest()
-        await s.get_best_server()
-        await s.download()
-        await s.upload()
+    summary = await redis.hgetall(summary_key)
 
-        data = {
-            'ping_ms': s.results.ping,
-            'download_mbps': s.results.download / 1000.0 / 1000.0 / 1,
-            'upload_mbps': s.results.upload / 1000.0 / 1000.0 / 1,
-        }
-        await redis.set(key, json.dumps(data), ex=30)
+    if not summary:
+        # TODO: Only add timeseries data that we don't already have -- how?
+        data = requests.get(url).json()
+        summary = make_summary(data)
+        await redis.hset(summary_key, mapping=summary)
+        await redis.expire(summary_key, 60)
+        partial = functools.partial(redis.execute_command, 'TS.MADD', ts_key)
+        for datapoint in data:
+            partial = functools.partial(
+                partial, datapoint['timestamp'], datapoint['mean'],
+            )
+        await partial()
 
-    return data
+    return summary
+
+
+@app.on_event('startup')
+async def startup_event():
+    try:
+        redis.execute_command('TS.CREATE', TIMESERIES_KEY)
+    except ResponseError:
+        # Time series already exists
+        pass
