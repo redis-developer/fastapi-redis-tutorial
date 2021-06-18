@@ -1,20 +1,11 @@
-from datetime import datetime
-
 import pytest
 from aioredis import Redis
 from httpx import AsyncClient
 
-from app.main import SUMMARY_KEY
-from app.main import TIME_FORMAT_STRING
+from app.main import Keys
 
 URL = '/is-bitcoin-lit'
-SENTICRYPT_FIELDS = ('time', 'mean_sentiment')
-
-
-@pytest.fixture
-def summary_key():
-    time = datetime.now().strftime(TIME_FORMAT_STRING)
-    yield SUMMARY_KEY.format(time=time)
+SENTICRYPT_FIELDS = ('time', 'mean_of_means_sentiment', 'mean_of_means_price')
 
 
 @pytest.mark.asyncio
@@ -29,11 +20,11 @@ async def test_api(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_api_cache(client: AsyncClient, redis: Redis, summary_key):
+async def test_api_cache(client: AsyncClient, redis: Redis, keys: Keys):
     # prime the cache
     await client.get(URL)
 
-    summary = await redis.hgetall(summary_key)
+    summary = await redis.hgetall(keys.summary_key())
     assert summary is not None
 
     for field in SENTICRYPT_FIELDS:
