@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from app.main import Keys
 
 URL = '/is-bitcoin-lit'
-SENTICRYPT_FIELDS = ('time', 'mean_of_means_sentiment', 'mean_of_means_price')
+EXPECTED_FIELDS = ('time', 'mean_of_means_sentiment', 'mean_of_means_price')
 
 
 @pytest.mark.asyncio
@@ -15,7 +15,7 @@ async def test_api(client: AsyncClient):
 
     assert res.status_code == 200
 
-    for field in SENTICRYPT_FIELDS:
+    for field in EXPECTED_FIELDS:
         assert field in summary
 
 
@@ -27,7 +27,7 @@ async def test_api_cache(client: AsyncClient, redis: Redis, keys: Keys):
     summary = await redis.hgetall(keys.summary_key())
     assert summary is not None
 
-    for field in SENTICRYPT_FIELDS:
+    for field in EXPECTED_FIELDS:
         assert field in summary
 
 
@@ -36,5 +36,5 @@ async def test_api_timeseries(client: AsyncClient, redis: Redis):
     data = await client.get(URL)
     summary = data.json()
 
-    for field in SENTICRYPT_FIELDS:
+    for field in EXPECTED_FIELDS:
         assert field in summary
