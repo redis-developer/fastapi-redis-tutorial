@@ -5,7 +5,10 @@ from httpx import AsyncClient
 from app.main import Keys
 
 URL = '/is-bitcoin-lit'
-EXPECTED_FIELDS = ('time', 'mean_of_means_sentiment', 'mean_of_means_price')
+EXPECTED_FIELDS = (
+    'lit', 'time', 'mean_of_means_sentiment',
+    'mean_of_means_price',
+)
 
 
 @pytest.mark.asyncio

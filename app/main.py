@@ -10,6 +10,7 @@ from typing import Union
 import aioredis
 import requests
 from aioredis.exceptions import ResponseError
+from fastapi import BackgroundTasks
 from fastapi import Depends
 from fastapi import FastAPI
 from pydantic import BaseSettings
@@ -18,6 +19,7 @@ from pydantic import BaseSettings
 DEFAULT_KEY_PREFIX = 'is-bitcoin-lit'
 SENTIMENT_API_URL = 'HTTps://api.senticrypt.com/v1/history/bitcoin-{time}.json'
 TIME_FORMAT_STRING = '%Y-%m-%d_%H'
+TWO_MINUTES = 60 * 60
 
 
 def prefixed_key(f):
@@ -65,11 +67,16 @@ redis = aioredis.from_url(config.redis_url, decode_responses=True)
 
 def make_summary(data):
     """Take a series of averages and summarize them as means of means."""
-    return {
+    summary = {
         'time': datetime.now().timestamp(),
         'mean_of_means_sentiment': sum(d['mean'] for d in data) / len(data),
         'mean_of_means_price': sum(float(d['btc_price']) for d in data) / len(data),
     }
+
+    summary['lit'] = '1' if float(
+        summary['mean_of_means_sentiment'],
+    ) > 0 else '0'
+    return summary
 
 
 async def add_many_to_timeseries(
@@ -87,7 +94,7 @@ async def add_many_to_timeseries(
     for datapoint in data:
         for key, attr in key_pairs:
             partial = functools.partial(
-                partial, key, datapoint['timestamp'], datapoint[attr],
+                partial, key, int(datapoint['timestamp']), datapoint[attr],
             )
     return await partial()
 
@@ -96,37 +103,57 @@ def make_keys():
     return Keys()
 
 
-@app.get('/is-bitcoin-lit')
-async def bitcoin(keys: Keys = Depends(make_keys)):
-    sentiment_time = datetime.now().strftime(TIME_FORMAT_STRING)
-    summary_key = keys.summary_key()
+async def persist(keys, data, summary):
+    # TODO: Only add timeseries data that we don't already have -- how?
     ts_price_key = keys.timeseries_price_key()
     ts_sentiment_key = keys.timeseries_sentiment_key()
+    summary_key = keys.summary_key()
+
+    await redis.hset(summary_key, mapping=summary)
+    await redis.expire(summary_key, TWO_MINUTES)
+    await add_many_to_timeseries(
+        (
+            (ts_price_key, 'btc_price'),
+            (ts_sentiment_key, 'mean'),
+        ), data,
+    )
+
+
+@app.get('/is-bitcoin-lit')
+async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_keys)):
+    sentiment_time = datetime.now().strftime(TIME_FORMAT_STRING)
+    summary_key = keys.summary_key()
     url = SENTIMENT_API_URL.format(time=sentiment_time)
 
     summary = await redis.hgetall(summary_key)
 
-    if not summary:
-        # TODO: Only add timeseries data that we don't already have -- how?
+    if summary:
+        summary['lit'] = True if summary['lit'] == '1' else False
+    else:
         data = requests.get(url).json()
         summary = make_summary(data)
-        await redis.hset(summary_key, mapping=summary)
-        await redis.expire(summary_key, 60)
-        await add_many_to_timeseries(
-            (
-                (ts_price_key, 'btc_price'),
-                (ts_sentiment_key, 'mean'),
-            ), data,
-        )
+        background_tasks.add_task(persist, keys, data, summary)
 
     return summary
 
 
 @app.on_event('startup')
-async def startup_event(keys: Keys = Depends(make_keys)):
+async def startup_event():
+    keys = Keys()
+    # When we create our timeseries, we'll use the "first" duplicate policy,
+    # which ignores duplicate pairs of timestamp and values if we add them.
+    #
+    # Because of this, we don't worry about handling this logic ourselves --
+    # but note that there is a performance cost to writes using this policy.
     try:
-        redis.execute_command('TS.CREATE', keys.timeseries_sentiment_key())
-        redis.execute_command('TS.CREATE', keys.timeseries_price_key())
+        await redis.execute_command(
+            'TS.CREATE', keys.timeseries_sentiment_key(),
+            'DUPLICATE_POLICY', 'first',
+        )
+        await redis.execute_command(
+            'TS.CREATE', keys.timeseries_price_key(),
+            'DUPLICATE_POLICY', 'first',
+        )
     except ResponseError:
         # Time series already exists
         pass
