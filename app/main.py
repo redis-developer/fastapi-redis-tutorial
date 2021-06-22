@@ -94,7 +94,7 @@ async def add_many_to_timeseries(
 
     `key_pairs` is an iteratble of tuples containing in the 0th position the
     timestamp key into which to insert entries and the 1th position the name
-    of the key within th e`data` dict to find the sample.
+    of the key within th `data` dict to find the sample.
     """
     partial = functools.partial(redis.execute_command, 'TS.MADD')
     for datapoint in data:
@@ -110,7 +110,6 @@ def make_keys():
 
 
 async def persist(keys: Keys, data: BitcoinSentiments, summary: Dict[str, Any]):
-    # TODO: Only add timeseries data that we don't already have -- how?
     ts_price_key = keys.timeseries_price_key()
     ts_sentiment_key = keys.timeseries_sentiment_key()
     summary_key = keys.summary_key()
