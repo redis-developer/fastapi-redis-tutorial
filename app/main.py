@@ -1,6 +1,7 @@
 import functools
 import logging
 from datetime import datetime
+from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
@@ -21,16 +22,20 @@ SENTIMENT_API_URL = 'HTTps://api.senticrypt.com/v1/history/bitcoin-{time}.json'
 TIME_FORMAT_STRING = '%Y-%m-%d_%H'
 TWO_MINUTES = 60 * 60
 
+BitcoinSentiments = List[Dict[str, Union[str, float]]]
+
 
 def prefixed_key(f):
     """
     A method decorator that prefixes return values.
+
     Prefixes any string that the decorated method `f` returns with the value of
     the `prefix` attribute on the owner object `self`.
     """
 
-    def prefixed_method(self, *args, **kwargs):
-        key = f(self, *args, **kwargs)
+    def prefixed_method(*args, **kwargs):
+        self = args[0]
+        key = f(*args, **kwargs)
         return f'{self.prefix}:{key}'
 
     return prefixed_method
@@ -56,6 +61,7 @@ class Keys:
 
 
 class Config(BaseSettings):
+    # The default URL expects the app to run using Docker and docker-compose.
     redis_url: str = 'redis://redis:6379'
 
 
@@ -81,7 +87,7 @@ def make_summary(data):
 
 async def add_many_to_timeseries(
     key_pairs: Iterable[Tuple[str, str]],
-    data: List[Dict[str, Union[str, float]]]
+    data: BitcoinSentiments
 ):
     """
     Add many samples to a single timeseries key.
@@ -103,7 +109,7 @@ def make_keys():
     return Keys()
 
 
-async def persist(keys, data, summary):
+async def persist(keys: Keys, data: BitcoinSentiments, summary: Dict[str, Any]):
     # TODO: Only add timeseries data that we don't already have -- how?
     ts_price_key = keys.timeseries_price_key()
     ts_sentiment_key = keys.timeseries_sentiment_key()
