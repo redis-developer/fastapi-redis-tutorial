@@ -146,11 +146,13 @@ async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_k
 @app.on_event('startup')
 async def startup_event():
     keys = Keys()
-    # When we create our timeseries, we'll use the "first" duplicate policy,
-    # which ignores duplicate pairs of timestamp and values if we add them.
+    # When we create our timeseries, we'll use the duplicate policy
+    # known as "first," which ignores duplicate pairs of timestamp and
+    # values if we add them.
     #
-    # Because of this, we don't worry about handling this logic ourselves --
-    # but note that there is a performance cost to writes using this policy.
+    # Because of this, we don't worry about handling this logic
+    # ourselves -- but note that there is a performance cost to writes
+    # using this policy.
     try:
         await redis.execute_command(
             'TS.CREATE', keys.timeseries_sentiment_key(),
