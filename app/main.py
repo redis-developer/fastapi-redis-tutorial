@@ -142,6 +142,10 @@ async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_k
     return summary
 
 
+# TODO: API endpoint that gets summaries between two dates?
+# "Useful for graphs"
+
+
 @app.on_event('startup')
 async def startup_event():
     keys = Keys()
