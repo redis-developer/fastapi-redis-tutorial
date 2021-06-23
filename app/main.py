@@ -133,7 +133,7 @@ async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_k
     summary = await redis.hgetall(summary_key)
 
     if summary:
-        summary['lit'] = True if summary['lit'] == '1' else False
+        summary['lit'] = summary['lit'] == '1'
     else:
         data = requests.get(url).json()
         summary = make_summary(data)
