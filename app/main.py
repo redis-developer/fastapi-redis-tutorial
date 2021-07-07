@@ -3,20 +3,16 @@ import json
 import logging
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Dict
 from typing import Iterable
 from typing import List
-from typing import Optional
 from typing import Tuple
 from typing import Union
 
 import aioredis
 import requests
 from aioredis.exceptions import ResponseError
-from dateutil.rrule import HOURLY
-from dateutil.rrule import rrule
-from fastapi import BackgroundTasks
-from fastapi import Body
 from fastapi import Depends
 from fastapi import FastAPI
 from pydantic import BaseSettings
@@ -74,7 +70,7 @@ class Keys:
 
     @prefixed_key
     def cache_key(self) -> str:
-        return f'sentiment:mean:1h:cache'
+        return f'cache'
 
 
 class Config(BaseSettings):
@@ -143,13 +139,15 @@ async def get_current_hour_data(keys):
     top_of_the_hour = int(
         datetime.utcnow().replace(
             minute=0,
+            second=0,
+            microsecond=0,
         ).timestamp() * 1000,
     )
     current_hour_avg_sentiment = await get_hourly_average(ts_sentiment_key, top_of_the_hour)
     current_hour_avg_price = await get_hourly_average(ts_price_key, top_of_the_hour)
 
     return {
-        'time': top_of_the_hour,
+        'time': datetime.fromtimestamp(top_of_the_hour / 1000, tz=timezone.utc).isoformat(),
         'price': current_hour_avg_price,
         'sentiment': current_hour_avg_sentiment,
     }
@@ -179,7 +177,7 @@ async def set_current_hour_cache(keys: Keys):
 
     # Now that we've ingested raw sentiment data, aggregate it for the current
     # hour and cache the result.
-    return refresh_hourly_cache(keys)
+    return await refresh_hourly_cache(keys)
 
 
 @app.get('/refresh')
@@ -197,16 +195,17 @@ async def bitcoin(keys: Keys = Depends(make_keys)):
     current_hour_stats_cached = await get_current_hour_cache(keys)
 
     if not current_hour_stats_cached:
-        await set_current_hour_cache(keys)
+        current_hour_stats_cached = await set_current_hour_cache(keys)
 
     three_hours_ago_ms = int((now - timedelta(hours=3)).timestamp() * 1000)
     sentiment = await redis.execute_command('TS.RANGE', sentiment_1h_key, three_hours_ago_ms, '+')
     price = await redis.execute_command('TS.RANGE', price_1h_key, three_hours_ago_ms, '+')
-    past_hours = [{'price': data[0][1], 'sentiment': data[1][1], 'time': data[0][0]}
-                  for data in zip(price, sentiment)]
-    current_hour = [current_hour_stats_cached] + past_hours
-
-    return current_hour + past_hours
+    past_hours = [{
+        'price': data[0][1], 'sentiment': data[1][1],
+        'time': datetime.fromtimestamp(data[0][0] / 1000, tz=timezone.utc),
+    }
+        for data in zip(price, sentiment)]
+    return past_hours + [current_hour_stats_cached]
 
 
 async def make_timeseries(key):
