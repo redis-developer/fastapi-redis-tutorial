@@ -129,7 +129,6 @@ async def get_hourly_average(ts_key: str, top_of_the_hour: int):
     )
     # Return the average without the timestamp. The response is a list
     # of the structure [timestamp, average].
-    print(response)
     return response[0][1]
 
 
@@ -187,6 +186,15 @@ async def bitcoin(keys: Keys = Depends(make_keys)):
     await refresh_hourly_cache(keys)
 
 
+def get_direction(last_three_hours, key: str):
+    if last_three_hours[0][key] < last_three_hours[-1][key]:
+        return 'rising'
+    elif last_three_hours[0][key] > last_three_hours[-1][key]:
+        return 'falling'
+    else:
+        return 'flat'
+
+
 @app.get('/is-bitcoin-lit')
 async def bitcoin(keys: Keys = Depends(make_keys)):
     now = datetime.utcnow()
@@ -205,7 +213,13 @@ async def bitcoin(keys: Keys = Depends(make_keys)):
         'time': datetime.fromtimestamp(data[0][0] / 1000, tz=timezone.utc),
     }
         for data in zip(price, sentiment)]
-    return past_hours + [current_hour_stats_cached]
+    last_three_hours = past_hours + [current_hour_stats_cached]
+
+    return {
+        'hourly_average_of_averages': last_three_hours,
+        'sentiment_direction': get_direction(last_three_hours, 'sentiment'),
+        'price_direction': get_direction(last_three_hours, 'price'),
+    }
 
 
 async def make_timeseries(key):
