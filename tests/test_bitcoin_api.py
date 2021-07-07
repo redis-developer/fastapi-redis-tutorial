@@ -2,8 +2,8 @@ import pytest
 from aioredis import Redis
 from httpx import AsyncClient
 
-from app.main import Keys
 
+REFRESH_URL = '/refresh'
 URL = '/is-bitcoin-lit'
 EXPECTED_FIELDS = (
     'lit', 'time', 'mean_of_means_sentiment',
@@ -13,6 +13,7 @@ EXPECTED_FIELDS = (
 
 @pytest.mark.asyncio
 async def test_api(client: AsyncClient):
+    await client.get(REFRESH_URL)
     res = await client.get(URL)
     summary = res.json()
 
@@ -23,19 +24,8 @@ async def test_api(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_api_cache(client: AsyncClient, redis: Redis, keys: Keys):
-    # prime the cache
-    await client.get(URL)
-
-    summary = await redis.hgetall(keys.summary_key())
-    assert summary is not None
-
-    for field in EXPECTED_FIELDS:
-        assert field in summary
-
-
-@pytest.mark.asyncio
 async def test_api_timeseries(client: AsyncClient, redis: Redis):
+    await client.get(REFRESH_URL)
     data = await client.get(URL)
     summary = data.json()
 

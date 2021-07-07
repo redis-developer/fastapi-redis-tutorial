@@ -3,10 +3,12 @@ from typing import Generator
 
 import aioredis
 import pytest
+from asgi_lifespan import LifespanManager
 from httpx import AsyncClient
 
 from app.main import app
 from app.main import config
+from app.main import initialize_redis
 from app.main import Keys
 from app.main import make_keys
 
@@ -43,5 +45,12 @@ async def keys(redis: aioredis.Redis):
 
 @pytest.fixture(scope='function')
 async def client(keys):
-    async with AsyncClient(app=app, base_url='http://test') as ac:
-        yield ac
+    async with AsyncClient(app=app, base_url='http://test') as client, \
+            LifespanManager(app):
+        yield client
+
+
+@pytest.fixture(scope='function', autouse=True)
+@pytest.mark.asyncio
+async def setup_redis(request, keys):
+    await initialize_redis(keys)

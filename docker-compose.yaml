@@ -25,4 +25,4 @@ services:
             - $PWD:/app
         depends_on:
             - redis
-        entrypoint: "pytest"
+        entrypoint: "pytest -s"
