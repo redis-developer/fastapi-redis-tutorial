@@ -1,3 +1,4 @@
+import datetime
 import json
 import os.path
 from unittest import mock
@@ -23,23 +24,28 @@ JSON_FIXTURE = os.path.join(
 
 @pytest.fixture
 def mock_bitcoin_api():
-    with mock.patch('requests.get') as mock_get:
-        with mock.patch('requests.Response') as mock_response:
-            # Mock out Response.json()
-            m = mock.MagicMock()
-            with open(JSON_FIXTURE) as f:
-                m.return_value = json.loads(f.read())
-            mock_response.json = m
+    with mock.patch('app.main.now') as mock_utcnow:
+        with mock.patch('requests.get') as mock_get:
+            with mock.patch('requests.Response') as mock_response:
+                mock_utcnow.return_value = datetime.datetime(
+                    2021, 7, 7, 10, 30, 0, 0,  # 2020-07-07 10:30:00 UTC
+                )
 
-            # Make get() return our fake Response.
-            mock_get.return_value = mock_response
+                # Mock out Response.json()
+                m = mock.MagicMock()
+                with open(JSON_FIXTURE) as f:
+                    m.return_value = json.loads(f.read())
+                mock_response.json = m
 
-            yield mock_get
+                # Make get() return our fake Response.
+                mock_get.return_value = mock_response
+
+                yield mock_get
 
 
 @pytest.mark.asyncio
 async def test_api(client: AsyncClient, mock_bitcoin_api: mock.MagicMock):
-    await client.get(REFRESH_URL)
+    await client.post(REFRESH_URL)
     res = await client.get(URL)
     summary = res.json()
 
@@ -54,7 +60,7 @@ async def test_api_timeseries(
     client: AsyncClient, redis: Redis,
     mock_bitcoin_api: mock.MagicMock
 ):
-    await client.get(REFRESH_URL)
+    await client.post(REFRESH_URL)
     data = await client.get(URL)
     summary = data.json()
 

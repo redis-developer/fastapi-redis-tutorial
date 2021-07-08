@@ -13,10 +13,10 @@ from typing import Union
 import aioredis
 import requests
 from aioredis.exceptions import ResponseError
+from fastapi import BackgroundTasks
 from fastapi import Depends
 from fastapi import FastAPI
 from pydantic import BaseSettings
-
 
 DEFAULT_KEY_PREFIX = 'is-bitcoin-lit'
 SENTIMENT_API_URL = 'https://api.senticrypt.com/v1/bitcoin.json'
@@ -49,24 +49,14 @@ class Keys:
         self.prefix = prefix
 
     @prefixed_key
-    def timeseries_30_second_sentiment_key(self) -> str:
+    def timeseries_sentiment_key(self) -> str:
         """A time series containing 30-second snapshots of BTC sentiment."""
         return f'sentiment:mean:30s'
 
     @prefixed_key
-    def timeseries_1_hour_sentiment_key(self) -> str:
-        """A time series containing 1-hour snapshots of BTC sentiment."""
-        return f'sentiment:mean:1h'
-
-    @prefixed_key
-    def timeseries_30_second_price_key(self) -> str:
+    def timeseries_price_key(self) -> str:
         """A time series containing 30-second snapshots of BTC price."""
         return f'price:mean:30s'
-
-    @prefixed_key
-    def timeseries_1_hour_price_key(self) -> str:
-        """A time series containing 1-hour snapshots of BTC price."""
-        return f'price:mean:1h'
 
     @prefixed_key
     def cache_key(self) -> str:
@@ -112,8 +102,8 @@ def make_keys():
 
 
 async def persist(keys: Keys, data: BitcoinSentiments):
-    ts_sentiment_key = keys.timeseries_30_second_sentiment_key()
-    ts_price_key = keys.timeseries_30_second_price_key()
+    ts_sentiment_key = keys.timeseries_sentiment_key()
+    ts_price_key = keys.timeseries_price_key()
     await add_many_to_timeseries(
         (
             (ts_price_key, 'btc_price'),
@@ -129,61 +119,35 @@ async def get_hourly_average(ts_key: str, top_of_the_hour: int):
     )
     # Return the average without the timestamp. The response is a list
     # of the structure [timestamp, average].
-    return response[0][1]
+    return response
 
 
-async def get_current_hour_data(keys):
-    ts_sentiment_key = keys.timeseries_30_second_sentiment_key()
-    ts_price_key = keys.timeseries_30_second_price_key()
-    top_of_the_hour = int(
-        datetime.utcnow().replace(
-            minute=0,
-            second=0,
-            microsecond=0,
-        ).timestamp() * 1000,
-    )
-    current_hour_avg_sentiment = await get_hourly_average(ts_sentiment_key, top_of_the_hour)
-    current_hour_avg_price = await get_hourly_average(ts_price_key, top_of_the_hour)
-
-    return {
-        'time': datetime.fromtimestamp(top_of_the_hour / 1000, tz=timezone.utc).isoformat(),
-        'price': current_hour_avg_price,
-        'sentiment': current_hour_avg_sentiment,
-    }
+def datetime_parser(dct):
+    for k, v in dct.items():
+        if isinstance(v, str) and v.endswith('+00:00'):
+            try:
+                dct[k] = datetime.datetime.fromisoformat(v)
+            except:
+                pass
+    return dct
 
 
-async def get_current_hour_cache(keys: Keys):
+async def get_cache(keys: Keys):
     current_hour_cache_key = keys.cache_key()
     current_hour_stats = await redis.get(current_hour_cache_key)
 
     if current_hour_stats:
-        return json.loads(current_hour_stats)
+        return json.loads(current_hour_stats, object_hook=datetime_parser)
 
 
-async def refresh_hourly_cache(keys: Keys):
-    current_hour_stats = await get_current_hour_data(keys)
+async def set_cache(data, keys: Keys):
+    def serialize_dates(v): return v.isoformat(
+    ) if isinstance(v, datetime) else v
     await redis.set(
-        keys.cache_key(), json.dumps(current_hour_stats),
+        keys.cache_key(),
+        json.dumps(data, default=serialize_dates),
         ex=TWO_MINUTES,
     )
-    return current_hour_stats
-
-
-async def set_current_hour_cache(keys: Keys):
-    # First, scrape the sentiment API and persist the data.
-    data = requests.get(SENTIMENT_API_URL).json()
-    await persist(keys, data)
-
-    # Now that we've ingested raw sentiment data, aggregate it for the current
-    # hour and cache the result.
-    return await refresh_hourly_cache(keys)
-
-
-@app.get('/refresh')
-async def bitcoin(keys: Keys = Depends(make_keys)):
-    data = requests.get(SENTIMENT_API_URL).json()
-    await persist(keys, data)
-    await refresh_hourly_cache(keys)
 
 
 def get_direction(last_three_hours, key: str):
@@ -195,31 +159,49 @@ def get_direction(last_three_hours, key: str):
         return 'flat'
 
 
-@app.get('/is-bitcoin-lit')
-async def bitcoin(keys: Keys = Depends(make_keys)):
-    now = datetime.utcnow()
-    sentiment_1h_key = keys.timeseries_1_hour_sentiment_key()
-    price_1h_key = keys.timeseries_1_hour_price_key()
-    current_hour_stats_cached = await get_current_hour_cache(keys)
+def now():
+    """Wrap call to utcnow, so that we can mock this function in tests."""
+    return datetime.utcnow()
 
-    if not current_hour_stats_cached:
-        current_hour_stats_cached = await set_current_hour_cache(keys)
 
-    three_hours_ago_ms = int((now - timedelta(hours=3)).timestamp() * 1000)
-    sentiment = await redis.execute_command('TS.RANGE', sentiment_1h_key, three_hours_ago_ms, '+')
-    price = await redis.execute_command('TS.RANGE', price_1h_key, three_hours_ago_ms, '+')
-    past_hours = [{
+async def calculate_three_hours_of_data(keys: Keys) -> Dict[str, str]:
+    sentiment_key = keys.timeseries_sentiment_key()
+    price_key = keys.timeseries_price_key()
+    three_hours_ago_ms = int((now() - timedelta(hours=3)).timestamp() * 1000)
+
+    sentiment = await get_hourly_average(sentiment_key, three_hours_ago_ms)
+    price = await get_hourly_average(price_key, three_hours_ago_ms)
+
+    last_three_hours = [{
         'price': data[0][1], 'sentiment': data[1][1],
         'time': datetime.fromtimestamp(data[0][0] / 1000, tz=timezone.utc),
     }
         for data in zip(price, sentiment)]
-    last_three_hours = past_hours + [current_hour_stats_cached]
 
     return {
         'hourly_average_of_averages': last_three_hours,
         'sentiment_direction': get_direction(last_three_hours, 'sentiment'),
         'price_direction': get_direction(last_three_hours, 'price'),
     }
+
+
+@app.post('/refresh')
+async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_keys)):
+    data = requests.get(SENTIMENT_API_URL).json()
+    await persist(keys, data)
+    data = await calculate_three_hours_of_data(keys)
+    background_tasks.add_task(set_cache, data, keys)
+
+
+@app.get('/is-bitcoin-lit')
+async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_keys)):
+    data = await get_cache(keys)
+
+    if not data:
+        data = await calculate_three_hours_of_data(keys)
+        background_tasks.add_task(set_cache, data, keys)
+
+    return data
 
 
 async def make_timeseries(key):
@@ -243,36 +225,9 @@ async def make_timeseries(key):
         log.info('Could not create timeseries %s, error: %s', key, e)
 
 
-async def make_rule(src: str, dest: str):
-    """
-    Create a compaction rule from timeseries at `str` to `dest`.
-
-    This rule aggregates metrics using 'avg' into hourly buckets.
-    """
-    try:
-        await redis.execute_command(
-            'TS.CREATERULE', src, dest, 'AGGREGATION', 'avg', HOURLY_BUCKET,
-        )
-    except ResponseError as e:
-        # Rule probably already exists.
-        log.info(
-            'Could not create timeseries rule (from %s to %s), error: %s', src, dest, e,
-        )
-
-
 async def initialize_redis(keys: Keys):
-    ts_30_sec_sentiment = keys.timeseries_30_second_sentiment_key()
-    ts_1_hour_sentiment = keys.timeseries_1_hour_sentiment_key()
-    ts_30_sec_price = keys.timeseries_30_second_price_key()
-    ts_1_hour_price = keys.timeseries_1_hour_price_key()
-
-    await make_timeseries(ts_30_sec_sentiment)
-    await make_timeseries(ts_1_hour_sentiment)
-    await make_timeseries(ts_30_sec_price)
-    await make_timeseries(ts_1_hour_price)
-
-    await make_rule(ts_30_sec_sentiment, ts_1_hour_sentiment)
-    await make_rule(ts_30_sec_price, ts_1_hour_price)
+    await make_timeseries(keys.timeseries_sentiment_key())
+    await make_timeseries(keys.timeseries_price_key())
 
 
 @app.on_event('startup')
