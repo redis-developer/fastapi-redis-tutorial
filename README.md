@@ -31,10 +31,68 @@ Use this command to run the app:
 
 This command starts Redis and the API server.
 
+
 ### Ingesting Price and Sentiment Data
 
-The app assumes a scheduler (cron job, Cloud scheduler, etc.) will hit the `/refresh` endpoint in the app to trigger ingesting Bitcoin price and sentiment data on a regular basis.
+The app assumes a scheduler (cron job, Cloud scheduler, etc.) will hit the `/refresh` endpoint in the app to ingest the last 24 hours of Bitcoin price and sentiment data on a regular basis.
+
+**NOTE** : We can refresh more than once every 24 hours without getting duplicate data in our time series. This is because RedisTimeSeries allows configuring rules to ignore duplicate sample and timestamp pairs.
 
 Use this API to ingest data when you're playing with the API:
 
-    $
+    $ curl -X POST localhost:8080/refresh
+
+After you've ingested data, you can request the `/is-bitcoin-lit` endpoint to see a summary of Bitcoin price and sentiment data. Continue reading to see how to use that endpoint.
+
+
+### Getting Summary Price and Sentiment Data from the API
+
+Use the `/is-bitcoin-lit` endpoint to get an hourly summary of Bitcoin price and sentiment data for the last three hours:
+
+    $ curl localhost:8080/is-bitcoin-lit | jq
+
+```json
+    {
+    "hourly_average_of_averages": [
+        {
+        "price": "32928.345",
+        "sentiment": "0.22",
+        "time": "2021-07-08T17:00:00+00:00"
+        },
+        {
+        "price": "32834.2910891089",
+        "sentiment": "0.224257425742574",
+        "time": "2021-07-08T18:00:00+00:00"
+        },
+        {
+        "price": "32871.3406666667",
+        "sentiment": "0.208666666666667",
+        "time": "2021-07-08T19:00:00+00:00"
+        },
+        {
+        "price": "32937.7355952381",
+        "sentiment": "0.221547619047619",
+        "time": "2021-07-08T20:00:00+00:00"
+        }
+    ],
+    "sentiment_direction": "rising",
+    "price_direction": "rising"
+    }
+```
+
+As you can see, the response includes the key `hourly_average_of_averages`. This key contains hourly averages derived from the Bitcoin sentiment API's data, which is itself averaged over 30-second periods. (Thus, these are *averages of averages*.)
+
+The API also returns the *direction* that the price and sentiment are moving. The directions are:
+
+Value  | Meaning
+---------|----------
+Rising | The price has risen over the past three hours.
+Falling | The price has fallen over the past three hours.
+Neutral | The price stayed the same for three hours (unlikely!)
+
+
+### Running Tests
+
+You can run the app's test suite using docker-compose:
+
+    $ docker-compose up test
