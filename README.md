@@ -34,15 +34,24 @@ This command starts Redis and the API server.
 
 ### Ingesting Price and Sentiment Data
 
-The app assumes a scheduler (cron job, Cloud scheduler, etc.) will hit the `/refresh` endpoint in the app to ingest the last 24 hours of Bitcoin price and sentiment data on a regular basis.
+The app assumes a scheduler (cron job, Cloud scheduler, etc.) will hit the
+`/refresh` endpoint in the app to ingest the last 24 hours of Bitcoin price and
+sentiment data on a regular basis.
 
-**NOTE** : We can refresh more than once every 24 hours without getting duplicate data in our time series. This is because RedisTimeSeries allows configuring rules to ignore duplicate sample and timestamp pairs.
+**NOTE** : We can refresh more than once every 24 hours without getting
+*duplicate data in our time series. This is because RedisTimeSeries allows
+*configuring rules to ignore duplicate sample and timestamp pairs.
 
 Use this API to ingest data when you're playing with the API:
 
     $ curl -X POST localhost:8080/refresh
 
-After you've ingested data, you can request the `/is-bitcoin-lit` endpoint to see a summary of Bitcoin price and sentiment data. Continue reading to see how to use that endpoint.
+After you've ingested data, you can request the `/is-bitcoin-lit` endpoint to
+see a summary of Bitcoin price and sentiment data. Continue reading to see how
+to use that endpoint.
+
+**NOTE**: We've used the free [SentiCrypt](https://senticrypt.com) API to pull
+Bitcoin sentiment and price.
 
 
 ### Getting Summary Price and Sentiment Data from the API
