@@ -141,8 +141,9 @@ async def get_cache(keys: Keys):
 
 
 async def set_cache(data, keys: Keys):
-    def serialize_dates(v): return v.isoformat(
-    ) if isinstance(v, datetime) else v
+    def serialize_dates(v):
+        return v.isoformat() if isinstance(v, datetime) else v
+
     await redis.set(
         keys.cache_key(),
         json.dumps(data, default=serialize_dates),
