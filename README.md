@@ -3,7 +3,7 @@
 This is an example API that demonstrates how to use Redis with FastAPI to build
 a fully async web service in Python.
 
-The API is called *IsBitcoinLit*. Readers outside the U.S. who unfamiliar with
+The API is called *IsBitcoinLit*. Readers outside the U.S. who are unfamiliar with
 the slang term "lit" might enjoy this [Merriam-Webster
 etymology](https://www.merriam-webster.com/words-at-play/lit-meaning-origin#:~:text=Lit%20has%20been%20used%20as,is%20%22exciting%20or%20excellent.%22).
 
