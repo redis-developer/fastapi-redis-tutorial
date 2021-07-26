@@ -8,10 +8,11 @@ authors = ["Andrew Brookins <andrew.brookins@redislabs.com>"]
 python = "^3.8"
 aioredis = "2.0.0a1"
 fastapi = "^0.61.0"
-uvicorn = "^0.11.8"
+uvicorn = "0.14.0"
 requests = "^2.24.0"
 asgi-lifespan = "^1.0.1"
 python-dateutil = "^2.8.1"
+httpx = "^0.18.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

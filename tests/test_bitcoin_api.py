@@ -4,8 +4,9 @@ import os.path
 from unittest import mock
 
 import pytest
-from aioredis import Redis
-from httpx import AsyncClient
+from fastapi.testclient import TestClient
+
+from app.main import app
 
 
 REFRESH_URL = '/refresh'
@@ -25,8 +26,8 @@ JSON_FIXTURE = os.path.join(
 @pytest.fixture
 def mock_bitcoin_api():
     with mock.patch('app.main.now') as mock_utcnow:
-        with mock.patch('requests.get') as mock_get:
-            with mock.patch('requests.Response') as mock_response:
+        with mock.patch('httpx.AsyncClient.get') as mock_get:
+            with mock.patch('httpx.Response') as mock_response:
                 mock_utcnow.return_value = datetime.datetime(
                     2021, 7, 7, 10, 30, 0, 0,  # 2020-07-07 10:30:00 UTC
                 )
@@ -43,26 +44,15 @@ def mock_bitcoin_api():
                 yield mock_get
 
 
-@pytest.mark.asyncio
-async def test_api(client: AsyncClient, mock_bitcoin_api: mock.MagicMock):
-    await client.post(REFRESH_URL)
-    res = await client.get(URL)
+client = TestClient(app)
+
+
+def test_api(mock_bitcoin_api: mock.MagicMock):
+    client.post(REFRESH_URL)
+    res = client.get(URL)
     summary = res.json()
 
     assert res.status_code == 200
-
-    for field in EXPECTED_FIELDS:
-        assert field in summary
-
-
-@pytest.mark.asyncio
-async def test_api_timeseries(
-    client: AsyncClient, redis: Redis,
-    mock_bitcoin_api: mock.MagicMock
-):
-    await client.post(REFRESH_URL)
-    data = await client.get(URL)
-    summary = data.json()
 
     for field in EXPECTED_FIELDS:
         assert field in summary

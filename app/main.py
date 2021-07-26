@@ -11,7 +11,7 @@ from typing import Tuple
 from typing import Union
 
 import aioredis
-import requests
+import httpx
 from aioredis.exceptions import ResponseError
 from fastapi import BackgroundTasks
 from fastapi import Depends
@@ -188,8 +188,9 @@ async def calculate_three_hours_of_data(keys: Keys) -> Dict[str, str]:
 
 @app.post('/refresh')
 async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_keys)):
-    data = requests.get(SENTIMENT_API_URL).json()
-    await persist(keys, data)
+    async with httpx.AsyncClient() as client:
+        data = await client.get(SENTIMENT_API_URL)
+    await persist(keys, data.json())
     data = await calculate_three_hours_of_data(keys)
     background_tasks.add_task(set_cache, data, keys)
 
