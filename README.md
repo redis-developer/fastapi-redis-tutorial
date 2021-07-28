@@ -63,8 +63,8 @@ Now you can use the `/is-bitcoin-lit` endpoint to see a summary of Bitcoin price
 and sentiment data. Continue reading to see how to use that endpoint.
 
 **NOTE**: We've used the free [SentiCrypt](https://senticrypt.com) API to pull
-Bitcoin sentiment and price. This is **in no way** a recommendation to use
-SentiCrypt for crypto price and sentiment tracking in real applications.
+Bitcoin sentiment and price. We are not affiliated with SentiCrypt and this is **in no way**
+a recommendation to use the API for crypto price and sentiment tracking in real applications.
 
 
 ### Getting Summary Price and Sentiment Data from the API
