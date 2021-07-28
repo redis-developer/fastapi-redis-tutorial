@@ -8,7 +8,7 @@ the slang term "lit" might enjoy this [Merriam-Webster
 etymology](https://www.merriam-webster.com/words-at-play/lit-meaning-origin#:~:text=Lit%20has%20been%20used%20as,is%20%22exciting%20or%20excellent.%22).
 
 The IsBitcoinLit API tracks Bitcoin sentiment and prices over time, rolling
-these up into hourly averages-of-averages using the [RedisTimeSeries
+these up into hourly averages of averages using the [RedisTimeSeries
 module](https://oss.redislabs.com/redistimeseries/). You can use the API to get
 average Bitcoin price and sentiment for each of the last three hours, with a
 quick indication of price and sentiment movement.
