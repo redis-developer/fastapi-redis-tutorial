@@ -25,7 +25,7 @@ First, clone this repo and build the Docker images for the project:
     $ cd fastapi-redis-tutorial
     $ docker-compose build
 
-Running the AIP involves starting the app server and Redis. You'll do those steps
+Running the API involves starting the app server and Redis. You'll do those steps
 next!
 
 
