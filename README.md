@@ -91,11 +91,6 @@ sentiment data for the last three hours:
         "price": "32871.3406666667",
         "sentiment": "0.208666666666667",
         "time": "2021-07-08T19:00:00+00:00"
-        },
-        {
-        "price": "32937.7355952381",
-        "sentiment": "0.221547619047619",
-        "time": "2021-07-08T20:00:00+00:00"
         }
     ],
     "sentiment_direction": "rising",
