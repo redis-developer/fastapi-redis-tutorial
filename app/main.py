@@ -187,7 +187,7 @@ async def calculate_three_hours_of_data(keys: Keys) -> Dict[str, str]:
 
 
 @app.post('/refresh')
-async def bitcoin(background_tasks: BackgroundTasks, keys: Keys = Depends(make_keys)):
+async def refresh(background_tasks: BackgroundTasks, keys: Keys = Depends(make_keys)):
     async with httpx.AsyncClient() as client:
         data = await client.get(SENTIMENT_API_URL)
     await persist(keys, data.json())
