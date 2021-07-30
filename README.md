@@ -8,7 +8,7 @@ the slang term "lit" might enjoy this [Merriam-Webster
 etymology](https://www.merriam-webster.com/words-at-play/lit-meaning-origin#:~:text=Lit%20has%20been%20used%20as,is%20%22exciting%20or%20excellent.%22).
 
 The IsBitcoinLit API tracks Bitcoin sentiment and prices over time, rolling
-these up into hourly averages using the [RedisTimeSeries
+these up into hourly averages of averages using the [RedisTimeSeries
 module](https://oss.redislabs.com/redistimeseries/). You can use the API to get
 average Bitcoin price and sentiment for each of the last three hours, with a
 quick indication of price and sentiment movement.
@@ -25,7 +25,7 @@ First, clone this repo and build the Docker images for the project:
     $ cd fastapi-redis-tutorial
     $ docker-compose build
 
-Running the AIP involves starting the app server and Redis. You'll do those steps
+Running the API involves starting the app server and Redis. You'll do those steps
 next!
 
 
@@ -63,8 +63,8 @@ Now you can use the `/is-bitcoin-lit` endpoint to see a summary of Bitcoin price
 and sentiment data. Continue reading to see how to use that endpoint.
 
 **NOTE**: We've used the free [SentiCrypt](https://senticrypt.com) API to pull
-Bitcoin sentiment and price. This is **in no way** a recommendation to use
-SentiCrypt for crypto price and sentiment tracking in real applications.
+Bitcoin sentiment and price. We are not affiliated with SentiCrypt and this is **in no way**
+a recommendation to use the API for crypto price and sentiment tracking in real applications.
 
 
 ### Getting Summary Price and Sentiment Data from the API
@@ -91,11 +91,6 @@ sentiment data for the last three hours:
         "price": "32871.3406666667",
         "sentiment": "0.208666666666667",
         "time": "2021-07-08T19:00:00+00:00"
-        },
-        {
-        "price": "32937.7355952381",
-        "sentiment": "0.221547619047619",
-        "time": "2021-07-08T20:00:00+00:00"
         }
     ],
     "sentiment_direction": "rising",
