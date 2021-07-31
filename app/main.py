@@ -117,8 +117,6 @@ async def get_hourly_average(ts_key: str, top_of_the_hour: int):
         'TS.RANGE', ts_key, top_of_the_hour, '+',
         'AGGREGATION', 'avg', HOURLY_BUCKET,
     )
-    # Return the average without the timestamp. The response is a list
-    # of the structure [timestamp, average].
     return response
 
 
@@ -168,10 +166,19 @@ def now():
 async def calculate_three_hours_of_data(keys: Keys) -> Dict[str, str]:
     sentiment_key = keys.timeseries_sentiment_key()
     price_key = keys.timeseries_price_key()
-    three_hours_ago_ms = int((now() - timedelta(hours=3)).timestamp() * 1000)
+    top_of_hour_three_hours_ago_ms = int(
+        (now() - timedelta(hours=3)).replace(
+            minute=0, second=0, microsecond=0,
+        ).timestamp() * 1000,
+    )
+    incomplete_hour = None
 
-    sentiment = await get_hourly_average(sentiment_key, three_hours_ago_ms)
-    price = await get_hourly_average(price_key, three_hours_ago_ms)
+    sentiment = await get_hourly_average(
+        sentiment_key, top_of_hour_three_hours_ago_ms,
+    )
+    price = await get_hourly_average(
+        price_key, top_of_hour_three_hours_ago_ms,
+    )
 
     last_three_hours = [{
         'price': data[0][1], 'sentiment': data[1][1],
@@ -179,8 +186,12 @@ async def calculate_three_hours_of_data(keys: Keys) -> Dict[str, str]:
     }
         for data in zip(price, sentiment)]
 
+    if len(last_three_hours) == 4:
+        incomplete_hour = last_three_hours.pop(-1)
+
     return {
         'hourly_average_of_averages': last_three_hours,
+        'incomplete_hourly_average_of_averages': incomplete_hour,
         'sentiment_direction': get_direction(last_three_hours, 'sentiment'),
         'price_direction': get_direction(last_three_hours, 'price'),
     }
