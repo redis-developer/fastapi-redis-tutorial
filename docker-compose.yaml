@@ -6,7 +6,7 @@ services:
           - "16379:6379"
         volumes:
           - $PWD/data:/data
-        command: --appendonly yes --aof-use-rdb-preamble yes --dir /data --loadmodule /usr/lib/redis/modules/redistimeseries.so
+        command: --dir /data --loadmodule /usr/lib/redis/modules/redistimeseries.so
 
     app:
         restart: always
