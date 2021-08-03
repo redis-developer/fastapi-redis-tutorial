@@ -117,8 +117,7 @@ async def get_hourly_average(ts_key: str, top_of_the_hour: int):
         'TS.RANGE', ts_key, top_of_the_hour, '+',
         'AGGREGATION', 'avg', HOURLY_BUCKET,
     )
-    # Return the average without the timestamp. The response is a list
-    # of the structure [timestamp, average].
+    # Returns a list of the structure [timestamp, average].
     return response
 
 
