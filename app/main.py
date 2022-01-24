@@ -20,7 +20,7 @@ from pydantic import BaseSettings
 
 DEFAULT_KEY_PREFIX = 'is-bitcoin-lit'
 SENTIMENT_API_URL = 'https://api.senticrypt.com/v1/bitcoin.json'
-TWO_MINUTES = 60 * 60
+TWO_MINUTES = 60 + 60
 HOURLY_BUCKET = '3600000'
 
 BitcoinSentiments = List[Dict[str, Union[str, float]]]
