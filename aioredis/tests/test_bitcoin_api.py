@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from aioredis.app.main import app
 
 
 REFRESH_URL = '/refresh'

@@ -10,7 +10,7 @@ services:
 
     app:
         restart: always
-        build: .
+        build: ..
         ports:
             - "8080:80"
         volumes:
@@ -20,7 +20,7 @@ services:
         command: /start-reload.sh
 
     test:
-        build: .
+        build: ..
         volumes:
             - $PWD:/app
         depends_on:

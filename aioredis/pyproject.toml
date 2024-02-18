@@ -12,7 +12,7 @@ requests = "^2.24.0"
 asgi-lifespan = "^1.0.1"
 python-dateutil = "^2.8.1"
 httpx = "^0.18.2"
-aioredis = "^2.0.0"
+aioredis = "^2.0.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

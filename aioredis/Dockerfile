@@ -9,8 +9,8 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
             poetry config virtualenvs.create false
 
 # Copy poetry.lock* in case it doesn't exist in the repo
-COPY ./pyproject.toml ./poetry.lock* /app/
+COPY pyproject.toml ./poetry.lock* /app/
 
 RUN bash -c "poetry install --no-root"
 
-COPY ./app /app
+COPY app /app
