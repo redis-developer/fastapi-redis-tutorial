@@ -111,6 +111,13 @@ async def persist(keys: Keys, data: BitcoinSentiments):
         ), data,
     )
 
+async def get_latest_timestamp(ts_key: str):
+    response = await redis.execute_command(
+        'TS.GET', ts_key
+    )
+
+    # Returns a list of the structure [timestamp, value]
+    return response
 
 async def get_hourly_average(ts_key: str, top_of_the_hour: int):
     response = await redis.execute_command(
@@ -167,7 +174,11 @@ def now():
 async def calculate_three_hours_of_data(keys: Keys) -> Dict[str, str]:
     sentiment_key = keys.timeseries_sentiment_key()
     price_key = keys.timeseries_price_key()
-    three_hours_ago_ms = int((now() - timedelta(hours=3)).timestamp() * 1000)
+    latest_data = await get_latest_timestamp(sentiment_key)
+    #three_hours_ago_ms = int((now() - timedelta(hours=3)).timestamp() * 1000)
+    three_hours_ago_ms = latest_data[0] - (1000 * 60 * 60 * 2)
+
+    print(three_hours_ago_ms)
 
     sentiment = await get_hourly_average(sentiment_key, three_hours_ago_ms)
     price = await get_hourly_average(price_key, three_hours_ago_ms)

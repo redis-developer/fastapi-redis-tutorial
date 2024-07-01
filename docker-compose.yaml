@@ -1,12 +1,10 @@
-version: '3.8'
 services:
     redis:
-        image: redislabs/redismod
+        image: redis/redis-stack
         ports:
           - "16379:6379"
         volumes:
           - $PWD/data:/data
-        command: --dir /data --loadmodule /usr/lib/redis/modules/redistimeseries.so
 
     app:
         restart: always

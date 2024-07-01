@@ -2,10 +2,10 @@
 name = "fastapi-starter-template"
 version = "0.1.0"
 description = ""
-authors = ["Andrew Brookins <andrew.brookins@redislabs.com>"]
+authors = [""]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 fastapi = "^0.61.0"
 uvicorn = "0.14.0"
 requests = "^2.24.0"
@@ -15,11 +15,11 @@ httpx = "^0.18.2"
 aioredis = "^2.0.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^8.2"
 pre-commit = "^2.6.0"
 tox = "^3.19.0"
-pytest-cov = "^2.10.1"
-pytest-asyncio = "^0.15.1"
+pytest-cov = "^5.0.0"
+pytest-asyncio = "^0.23.7"
 httpx = "^0.18.1"
 ipdb = "^0.13.9"
 yapf = "^0.31.0"
